@@ -1,55 +1,63 @@
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { useState, useCallback } from "react";
 import {
   Dimensions,
   FlatList,
   Image,
+  ImageBackground,
   StyleSheet,
   Text,
   View,
+  TextInput,
 } from "react-native";
-import { TextInput } from "react-native-gesture-handler";
 import { Button as PaperButton } from "react-native-paper";
 
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen({ navigation }) {
-  const [busca, setbusca] = useState("");
+  const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [ receitas, setReceitas] = useState([]);
 
-  const [receitas, seReceitas] = useState([
-    {
-      id: "1",
-      titulo: "Bolo de Cenoura",
-      ingredientes:
-        "300gr cenoura, 3 ovos, 180ml de óleo, 1 e 1/2 de xícara de açúcar, 2 xícaras de farinha de trigo, 1 colher de sopa de fermento em pó.",
-      modo: "Misture tudo e asse por 40 minutos.",
-    },
-    {
-      id: "2",
-      titulo: "Panqueca",
-      ingredientes: "farinha, leite, ovo...",
-      modo: "Misture e frite na frigideira.",
-    },
-  ]);
+  // Carrega receitas do AsyncStorage sempre que a tela voltar ao foco
+   useFocusEffect(
+    useCallback(() => {
+      const carregarReceitas = async () => {
+        try {
+          const dados = await AsyncStorage.getItem("@receitas");
+          const lista = dados ? JSON.parse(dados) : [];
+          setReceitas(lista);
+        } catch (error) {
+          console.error("Erro ao carregar receitas:", error);
+        }
+      };
+
+      carregarReceitas();
+    }, [])
+  );
 
   const receitasFiltradas = receitas.filter((r) =>
-    r.titulo.toLowerCase().includes(filtro.toLowerCase()) ||
-  r.ingredientes.toLowerCase().includes(filtro.toLowerCase())
+    r.titulo.toLowerCase().includes(filtro.toLowerCase())
   );
 
   return (
+    <ImageBackground 
+    source={require("../assets/image.jpg")} //Coloque sua imagem
+    style={styles.background}
+    resizeMode="cover"
+    >
     <View style={styles.container}>
-      <Image source={require("../assets/capa.png")} style={styles.imagemCapa} />
+      <Image source={require("../assets/image.jpg")} style={styles.imagemCapa} />
       <Text style={styles.titulo}>Livro de Receitas</Text>
 
-      <TextInput
+      {/*Linha de busca (input + botão)*/}
+      <View style={styles.linhaBusca}>
+        <TextInput
         placeholder="Buscar receita..."
-        style={styles.input}
+        style={styles.inputBusca}
         value={busca}
-        onChangeText={(texto)=> {
-          setbusca(texto);
-          setFiltro(texto);  //busca automática ao digitar
-        }}
+        onChangeText={setBusca}
       />
 
       <PaperButton
@@ -59,11 +67,12 @@ export default function HomeScreen({ navigation }) {
         style={styles.botaoBuscar}
       >
         Buscar
-      </PaperButton>
-
+        </PaperButton>
+      </View>
+      
       <FlatList
         data={receitasFiltradas}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => (item?.id ? item.id.toString() : index.toString())}  // ← Garantimos que seja string
         renderItem={({ item }) => (
           <PaperButton
             mode="outlined"
@@ -71,7 +80,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.item}
           >
             {item.titulo}
-          </PaperButton>
+            </PaperButton>
         )}
         ListEmptyComponent={
           <Text style={styles.nenhuma}>Nenhuma receita encontrada</Text>
@@ -85,13 +94,17 @@ export default function HomeScreen({ navigation }) {
           onPress={() => navigation.navigate("Nova Receita")}
         >
           Adicionar receita
-        </PaperButton>
+          </PaperButton>
       </View>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     alignItems: "center",
@@ -113,21 +126,29 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 10,
   },
-  input: {
-    width: "100%",
-    maxWidth: 400,
+   // 🔄 Nova estilização para input + botão juntos
+  linhaBusca: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    gap: 10, // Se não funcionar, use marginLeft no botão
+  },
+  inputBusca: {
+    flex: 1,
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 10,
     borderRadius: 8,
-    marginBottom: 20,
+    backgroundColor: "#fff",
+    maxWidth: 300,
   },
   botaoBuscar: {
-    marginBottom: 20,
-    alignSelf: "center",
-    width: 150,
     borderRadius: 8,
+    height: 50,
+    justifyContent: "center",
   },
+
   item: {
     marginVertical: 5,
     width: "100%",
@@ -141,7 +162,7 @@ const styles = StyleSheet.create({
   },
   nenhuma: {
     fontSize: 16,
-    color: 'gray',
+    color: "gray",
     marginTop: 20,
     textAlign: "center",
   },
